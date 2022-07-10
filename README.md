@@ -51,3 +51,55 @@ make install
 
 # Install IRSTLM:
  
+
+
+
+
+
+# Testing mosesdecoder:
+cd $HOME/smt/mosesdecoder \
+wget http://www.statmt.org/moses/download/sample-models.tgz \
+tar xzf sample-models.tgz \
+cd sample-models \
+$HOME/smt/mosesdecoder/bin/moses -f $HOME/smt/mosesdecoder/phrase-model/moses.ini < $HOME/smt/mosesdecoder/phrase-model/in > out 
+After running the code, output will be "it is a small house"
+
+
+# Corpus Preparation
+mkdir corpus \
+cd corpus \
+wget http://www.statmt.org/wmt13/training-parallel-nc-v8.tgz \
+tar zxvf training-parallel-nc-v8.tgz
+
+##### Tokenisation
+$HOME/smt/mosesdecoder/scripts/tokenizer/tokenizer.perl -l en < $HOME/smt/mosesdecoder/corpus/training/news-commentary-v8.fr-en.en > $HOME/smt/mosesdecoder/corpus/news-commentary-v8.fr-en.tok.en \
+$HOME/smt/mosesdecoder/scripts/tokenizer/tokenizer.perl -l fr < $HOME/smt/mosesdecoder/corpus/training/news-commentary-v8.fr-en.fr > $HOME/smt/mosesdecoder/corpus/news-commentary-v8.fr-en.tok.fr 
+
+##### Truecasing
+To get the truecasing training modelsthat are the statistics data extracted from text, type the following commands: \
+$HOME/smt/mosesdecoder/scripts/recaser/train-truecaser.perl --model $HOME/smt/mosesdecoder/corpus/truecase-model.en --corpus $HOME/smt/mosesdecoder/corpus/news-commentary-v8.fr-en.tok.en \
+$HOME/smt/mosesdecoder/scripts/recaser/train-truecaser.perl --model $HOME/smt/mosesdecoder/corpus/truecase-model.fr --corpus $HOME/smt/mosesdecoder/corpus/news-commentary-v8.fr-en.tok.fr
+
+Above commands will generate the model files "truecase-model.en" and "truecase-model.fr" under the directory "~/corpus"
+
+Using the extracted truecasing training models to perform the truecase function as below commands:
+$HOME/smt/mosesdecoder/scripts/recaser/truecase.perl --model ~/corpus/truecase-model.en < $HOME/smt/mosesdecoder/corpus/news-commentary-v8.fr-en.tok.en > $HOME/smt/mosesdecoder/corpus//news-commentary-v8.fr-en.true.en \
+$HOME/smt/mosesdecoder/scripts/recaser/truecase.perl --model ~/corpus/truecase-model.fr < $HOME/smt/mosesdecoder/corpus/news-commentary-v8.fr-en.tok.fr > $HOME/smt/mosesdecoder/corpus/news-commentary-v8.fr-en.true.fr 
+
+##### Cleaning 
+$HOME/smt/mosesdecoder/scripts/training/clean-corpus-n.perl $HOME/smt/mosesdecoder/corpus/news-commentary-v8.fr-en.true fr en $HOME/smt/mosesdecoder/corpus/news-commentary-v8.fr-en.clean 1 80
+
+files " ...clean.en" and "...clean.fr" will be generated in the directory "~/corpus"
+
+cd $HOME/smt
+mkdir lm
+cd lm
+$HOME/smt/irstlm/bin/add-start-end.sh < $HOME/smt/mosesdecoder/corpus/news-commentary-v8.fr-en.true.en > $HOME/smt/mosesdecoder/corpus/news-commentary-v8.fr-en.sb.en
+
+
+export IRSTLM=$HOME/smt/irstlm; $HOME/smt/irstlm/bin/build-lm.sh -i $HOME/smt/mosesdecoder/corpus/news-commentary-v8.fr-en.sb.en -t ./temp -p -s improved-kneser-ney -o $HOME/smt/lm/news-commentary-v8.fr-en.lm.en
+
+$HOME/smt/irstlm/bin/compile-lm --text=yes $HOME/smt/lm/news-commentary-v8.fr-en.lm.en.gz $HOME/smt/lm/news-commentary-v8.fr-en.arpa.en
+
+$HOME/smt/mosesdecoder/bin/build_binary $HOME/smt/lm/news-commentary-v8.fr-en.arpa.en $HOME/smt/lm/news-commentary-v8.fr-en.blm.en
+
